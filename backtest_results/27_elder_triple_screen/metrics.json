@@ -1,0 +1,47 @@
+{
+  "strategy": "27_elder_triple_screen",
+  "source_file": "27_elder_triple_screen.py",
+  "status": "completed",
+  "requested_period": {
+    "start": "2019-01-01",
+    "end": "2026-10-10"
+  },
+  "actual_data_period": {
+    "start": "2019-01-02",
+    "end": "2026-10-09"
+  },
+  "products": [
+    "SHFE.rb"
+  ],
+  "method": "offline daily research simulation; daily close signal and next daily open execution; roll-adjusted OHLC, no raw cross-contract roll-gap PnL",
+  "gross_exposure_normalization": "Target lots are normalized to gross notional exposure 1.0 for cross-strategy comparison; this is not TqSim cash/lot accounting.",
+  "cost_one_way_bps": 5.0,
+  "cost_note": "Generic proxy for commission plus slippage. It is not an exchange-specific fee schedule or tick-by-tick fill simulation.",
+  "rebalance_events": 1843,
+  "metrics": {
+    "days": 1882,
+    "total_return": -0.00379918875739238,
+    "cagr": -0.0005095507138560551,
+    "annualized_volatility": 0.046306197437227185,
+    "sharpe": 0.012165182151044457,
+    "max_drawdown": -0.1824901144211859,
+    "win_rate": 0.012752391073326248,
+    "total_cost": 0.0035,
+    "average_gross_exposure": 0.024442082890541977
+  },
+  "notes": [
+    "The source asks for hourly and 15-minute screens. Per the agreed daily-only scope, those screens are represented with daily stochastic and daily 5/10 MA crosses; this is a daily proxy, not a faithful multi-timeframe replay."
+  ],
+  "files": [
+    "daily_equity.csv",
+    "equity_curve.png",
+    "factor_contribution.csv",
+    "factor_ic_summary.csv",
+    "factor_ic_by_product.csv",
+    "product_attribution.csv",
+    "period_metrics.csv",
+    "cost_sensitivity.csv",
+    "rebalance_signals.csv",
+    "target_weights_at_close.csv"
+  ]
+}

@@ -1,0 +1,4 @@
+﻿product,factor,observations,spearman_ic,ic_positive
+SHFE.rb,ma_cross,1842,-0.012343936340988489,False
+SHFE.rb,macd_slope,1842,-0.01040110761798528,False
+SHFE.rb,stochastic_k,1842,-0.01771315044901014,False

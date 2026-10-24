@@ -1,0 +1,4 @@
+﻿factor,observations,rebalances_with_cross_section,mean_cross_sectional_ic,positive_ic_fraction
+cmf,2976,372,0.0355862775217614,0.5349462365591398
+oi_divergence,2976,372,0.007081899884768932,0.5026881720430108
+vwap_deviation,2976,372,0.028481822836661556,0.5

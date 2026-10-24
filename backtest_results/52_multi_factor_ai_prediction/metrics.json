@@ -1,0 +1,58 @@
+{
+  "strategy": "52_multi_factor_ai_prediction",
+  "source_file": "52_multi_factor_ai_prediction.py",
+  "status": "no_trades_under_source_rules",
+  "requested_period": {
+    "start": "2019-01-01",
+    "end": "2026-10-10"
+  },
+  "actual_data_period": {
+    "start": "2019-01-02",
+    "end": "2026-10-09"
+  },
+  "products": [
+    "SHFE.rb",
+    "SHFE.hc",
+    "DCE.i",
+    "DCE.j",
+    "DCE.jm",
+    "SHFE.cu",
+    "SHFE.al",
+    "DCE.m",
+    "CZCE.RM",
+    "DCE.cs",
+    "CZCE.SR",
+    "INE.sc"
+  ],
+  "method": "offline daily research simulation; daily close signal and next daily open execution; roll-adjusted OHLC, no raw cross-contract roll-gap PnL",
+  "gross_exposure_normalization": "Target lots are normalized to gross notional exposure 1.0 for cross-strategy comparison; this is not TqSim cash/lot accounting.",
+  "cost_one_way_bps": 5.0,
+  "cost_note": "Generic proxy for commission plus slippage. It is not an exchange-specific fee schedule or tick-by-tick fill simulation.",
+  "rebalance_events": 369,
+  "metrics": {
+    "days": 1882,
+    "total_return": 0.0,
+    "cagr": 0.0,
+    "annualized_volatility": 0.0,
+    "sharpe": 0.0,
+    "max_drawdown": 0.0,
+    "win_rate": 0.0,
+    "total_cost": 0.0,
+    "average_gross_exposure": 0.0
+  },
+  "notes": [
+    "The source implementation has an unreachable/one-shot signal condition; the as-coded backtest is expected to remain flat. See the strategy note and factor signals."
+  ],
+  "files": [
+    "daily_equity.csv",
+    "equity_curve.png",
+    "factor_contribution.csv",
+    "factor_ic_summary.csv",
+    "factor_ic_by_product.csv",
+    "product_attribution.csv",
+    "period_metrics.csv",
+    "cost_sensitivity.csv",
+    "rebalance_signals.csv",
+    "target_weights_at_close.csv"
+  ]
+}

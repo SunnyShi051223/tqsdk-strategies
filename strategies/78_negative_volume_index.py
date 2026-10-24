@@ -6,17 +6,17 @@
 
 【关于 TqSdk】
 TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货、期权、股票等市场，提供实时行情、K 线数据、历史回测、模拟交易和实盘交易等能力。
-本策略脚本默认使用 TqSim 模拟账户演示交易流程，不包含任何真实账号、交易密码、Token 或 API Key。
-运行前可以通过环境变量 TQ_ACCOUNT / TQ_PASSWORD 提供天勤或快期账号；如果不设置，代码只保留 YOUR_ACCOUNT / YOUR_PASSWORD 占位符，方便公开托管时避免泄露敏感信息。
+本策略脚本使用 TqSim 模拟账户演示交易流程；快期登录配置统一从本地 strategies/config_local.py 读取。
+运行前请先在 strategies/config_local.py 中填写快期账号；合约和回测日期在本文件参数区设置。
 
 【策略介绍】
 负成交量指数趋势策略用于演示如何把“在低量日跟踪价格累积方向，用 NVI 均线判断主导趋势”这一交易想法落到 TqSdk 策略脚本中。
-脚本默认关注 SHFE.zn2505，使用 单合约时序信号：根据加权因子得分决定目标多空仓位。
+合约列表与回测日期可在参数区修改；当前默认关注 SHFE.zn2505，使用 单合约时序信号：根据加权因子得分决定目标多空仓位。
 核心因子包括：负成交量指数趋势、均线斜率、低波动偏好。核心因子会被标准化并加权成综合得分，得分超过入场阈值时建立目标仓位，得分回落到退出阈值附近时降低或清空仓位。
 
 【运行说明】
 1. 安装依赖：pip install tqsdk -U。
-2. 建议通过环境变量设置账号：set TQ_ACCOUNT=你的账号，set TQ_PASSWORD=你的密码；也可以把占位符替换为自己的账号信息。
+2. 快期账号已在 strategies/config_local.py 本地配置，无需额外配置。
 3. 本示例使用 TqSim 模拟账户，不会直接连接实盘资金账号。
 4. 合约月份只是示例，运行前请替换为当前在市、流动性充足的主力或目标合约。
 
@@ -24,11 +24,16 @@ TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货
 本策略只用于学习和研究，不构成投资建议。因子信号、历史价差、成交量结构和波动率规律都会失效，趋势反转、跳空、流动性不足、手续费和滑点都可能导致亏损。用于真实交易前，应先完成回测、模拟交易、参数敏感性检查和风控评估。
 """
 
-import os
 
 import numpy as np
 import pandas as pd
 from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
+
+from datetime import date
+from backtest_support import create_backtest_api, run_backtest
+BACKTEST_START = date(2025, 1, 1)
+BACKTEST_END = date(2025, 5, 31)
+init_balance = 10_000_000  # 模拟账户初始资金（元）
 
 
 STRATEGY_ID = 78
@@ -47,10 +52,8 @@ EPS = 1e-12
 
 
 def create_api():
-    """创建 TqApi；账号从环境变量读取，避免把真实敏感信息写进公开仓库。"""
-    tq_account = os.getenv("TQ_ACCOUNT", "YOUR_ACCOUNT")
-    tq_password = os.getenv("TQ_PASSWORD", "YOUR_PASSWORD")
-    return TqApi(account=TqSim(), auth=TqAuth(tq_account, tq_password))
+    """创建历史回测 API；快期账号从 strategies/config_local.py 读取。"""
+    return create_backtest_api('78_negative_volume_index', SYMBOLS, BACKTEST_START, BACKTEST_END, init_balance=init_balance)
 
 
 def latest(series, default=0.0):
@@ -353,4 +356,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_backtest(main)

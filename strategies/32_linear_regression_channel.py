@@ -5,16 +5,16 @@
 【关于 TqSdk】
 TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货、期权、股票等市场，提供实时行情、K 线数据、历史回测、模拟交易和实盘交易等能力。
 本仓库中的策略示例通常使用 TqApi 获取行情和 K 线，用 TqSim 或模拟账户演示交易流程，并通过目标仓位或下单接口把策略信号转成交易动作。
-运行这些示例前，需要先安装 tqsdk，并把示例中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的天勤或快期账户信息。
+运行这些示例前，需要先安装 tqsdk；快期账号已在 strategies/config_local.py 本地配置，合约和回测日期可在参数区修改。
 
 【策略介绍】
 线性回归通道策略用于演示如何把一个明确的交易想法落到 TqSdk 策略脚本中。核心思路是：用线性回归中轴和上下通道衡量趋势斜率与价格偏离，突破或回归时给出交易信号。
-脚本默认关注 KQ.m@SHFE.rb，运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
+合约与回测日期可在文件上方参数区设置；运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
 这类回归通道策略既可以观察趋势斜率，也可以观察价格相对通道的偏离，使用时要先确认脚本当前采用的是突破还是回归逻辑。
 
 【运行说明】
 1. 安装依赖：pip install tqsdk -U。
-2. 修改账号：把文件中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的账号信息。
+2. 快期账号已在 strategies/config_local.py 本地配置，无需额外设置。
 3. 先使用模拟账户运行和观察日志，不建议未经验证直接用于实盘。
 4. 如果合约代码已经过期，需要替换为当前在市的主力或目标合约。
 
@@ -135,10 +135,16 @@ import numpy as np
 from tqsdk import TqApi, TqAuth, TqSim, BacktestFinished
 from tqsdk.tafunc import sma
 
+from datetime import date
+from backtest_support import create_backtest_api, run_backtest
+BACKTEST_START = date(2025, 1, 1)
+BACKTEST_END = date(2025, 6, 30)
+init_balance = 500_000  # 模拟账户初始资金（元）
+
 # ─────────────────────────────────────────────
 # 策略参数
 # ─────────────────────────────────────────────
-SYMBOL = "KQ.m@SHFE.rb"     # 螺纹钢主力合约（自动展期）
+SYMBOL = "SHFE.rb2505"  # specific futures contract
 KLINE_PERIOD = 3600          # K 线周期：3600 秒 = 60 分钟
 LR_PERIOD = 30               # 线性回归计算窗口（根 K 线数量）
 CHANNEL_K = 2.0              # 通道宽度倍数（标准误差的倍数）
@@ -200,10 +206,7 @@ def main():
     # ─────────────────────────────────────────
     # 初始化 TqApi（使用模拟账户）
     # ─────────────────────────────────────────
-    api = TqApi(
-        account=TqSim(init_balance=500000),
-        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"),   # 请替换为实际账号
-    )
+    api = create_backtest_api('32_linear_regression_channel', SYMBOL, BACKTEST_START, BACKTEST_END, init_balance=init_balance)
 
     # 获取 K 线数据（需要 LR_PERIOD + 缓冲，取 200 根）
     klines = api.get_kline_serial(SYMBOL, KLINE_PERIOD, data_length=200)
@@ -336,4 +339,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_backtest(main)

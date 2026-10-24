@@ -7,18 +7,18 @@
 【关于 TqSdk】
 TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货、期权、股票等市场，提供实时行情、K 线数据、历史回测、模拟交易和实盘交易等能力。
 本仓库中的策略示例通常使用 TqApi 获取行情和 K 线，用 TqSim 或模拟账户演示交易流程，并通过目标仓位或下单接口把策略信号转成交易动作。
-运行这些示例前，需要先安装 tqsdk，并把示例中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的天勤或快期账户信息。
+运行这些示例前，需要先安装 tqsdk；快期账号已在 strategies/config_local.py 本地配置，合约和回测日期可在参数区修改。
 
 【策略介绍】
 统计套利跨品种对冲策略用于演示如何把一个明确的交易想法落到 TqSdk 策略脚本中。核心思路是：围绕跨品种价差的均值回归特征，用 Z-score 识别偏离并做配对对冲。
-脚本默认关注 文件参数中设置的合约或品种池，运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
+合约与回测日期可在文件上方参数区设置；运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
 这类策略重点观察相对强弱和价差偏离，不是单纯预测某一个品种涨跌，需要特别关注品种相关性和价差稳定性。
 本策略内置多组产业或基本面联系较强的配对，例如螺纹钢与热卷、焦煤与焦炭、豆粕与豆油等。脚本会先用历史价格估算两个品种之间的对冲比例，再计算当前价差相对历史均值的偏离程度。价差明显偏高时做空价差，价差明显偏低时做多价差；当偏离收敛到较小区间时，策略平掉两边仓位。实际运行前应检查配对关系是否仍然有效、合约月份是否匹配、两边流动性是否足够，以及手续费和保证金是否会吞掉价差回归收益。
 
 
 【运行说明】
 1. 安装依赖：pip install tqsdk -U。
-2. 修改账号：把文件中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的账号信息。
+2. 快期账号已在 strategies/config_local.py 本地配置，无需额外设置。
 3. 先使用模拟账户运行和观察日志，不建议未经验证直接用于实盘。
 4. 如果合约代码已经过期，需要替换为当前在市的主力或目标合约。
 
@@ -35,14 +35,20 @@ import numpy as np
 import pandas as pd
 from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 
+from datetime import date
+from backtest_support import create_backtest_api, run_backtest
+BACKTEST_START = date(2025, 1, 1)
+BACKTEST_END = date(2025, 5, 31)
+init_balance = 10_000_000  # 模拟账户初始资金（元）
+
 # ========== 策略参数 ==========
 # 配对品种列表（可扩展）
 PAIRS = [
-    ("SHFE.rb205", "SHFE.hc205"),    # 螺纹钢-热卷
-    ("DCE.j205", "DCE.jm205"),       # 焦煤-焦炭
-    ("DCE.m205", "DCE.y205"),        # 豆粕-豆油
-    ("CZCE.SR205", "CZCE.RM205"),    # 白糖-菜粕
-    ("CZCE.JD205", "DCE.cs205"),     # 鸡蛋-玉米淀粉
+    ("SHFE.rb2505", "SHFE.hc2505"),    # 螺纹钢-热卷
+    ("DCE.j2505", "DCE.jm2505"),       # 焦煤-焦炭
+    ("DCE.m2505", "DCE.y2505"),        # 豆粕-豆油
+    ("CZCE.SR2505", "CZCE.RM2505"),    # 白糖-菜粕
+    ("CZCE.JD2505", "DCE.cs2505"),     # 鸡蛋-玉米淀粉
 ]
 ENTRY_ZSCORE = 1.5                   # 入场Z-score阈值
 EXIT_ZSCORE = 0.3                   # 平仓Z-score阈值
@@ -76,7 +82,7 @@ def get_spread(series1, series2, hedge_ratio):
 
 # ========== 策略主体 ==========
 def main():
-    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
+    api = create_backtest_api('61_statistical_arbitrage', PAIRS, BACKTEST_START, BACKTEST_END, init_balance=init_balance)
     target_pos = {sym: TargetPosTask(api, sym) for pair in PAIRS for sym in pair}
 
     print(f"[策略61] 统计套利跨品种对冲策略启动 | 配对数: {len(PAIRS)}")
@@ -155,4 +161,4 @@ def main():
     api.close()
 
 if __name__ == "__main__":
-    main()
+    run_backtest(main)

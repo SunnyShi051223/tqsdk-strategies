@@ -1,0 +1,52 @@
+{
+  "strategy": "58_money_flow_rotation",
+  "source_file": "58_money_flow_rotation.py",
+  "status": "completed",
+  "requested_period": {
+    "start": "2019-01-01",
+    "end": "2026-10-10"
+  },
+  "actual_data_period": {
+    "start": "2019-01-02",
+    "end": "2026-10-09"
+  },
+  "products": [
+    "SHFE.rb",
+    "SHFE.hc",
+    "DCE.i",
+    "DCE.jm",
+    "DCE.j",
+    "CZCE.MA",
+    "CZCE.TA",
+    "INE.sc"
+  ],
+  "method": "offline daily research simulation; daily close signal and next daily open execution; roll-adjusted OHLC, no raw cross-contract roll-gap PnL",
+  "gross_exposure_normalization": "Target lots are normalized to gross notional exposure 1.0 for cross-strategy comparison; this is not TqSim cash/lot accounting.",
+  "cost_one_way_bps": 5.0,
+  "cost_note": "Generic proxy for commission plus slippage. It is not an exchange-specific fee schedule or tick-by-tick fill simulation.",
+  "rebalance_events": 372,
+  "metrics": {
+    "days": 1882,
+    "total_return": 0.02851325132981164,
+    "cagr": 0.0037716043200393123,
+    "annualized_volatility": 0.15524567679068058,
+    "sharpe": 0.10186960772413275,
+    "max_drawdown": -0.3568281920737185,
+    "win_rate": 0.4952178533475027,
+    "total_cost": 0.20225,
+    "average_gross_exposure": 0.9861849096705633
+  },
+  "notes": [],
+  "files": [
+    "daily_equity.csv",
+    "equity_curve.png",
+    "factor_contribution.csv",
+    "factor_ic_summary.csv",
+    "factor_ic_by_product.csv",
+    "product_attribution.csv",
+    "period_metrics.csv",
+    "cost_sensitivity.csv",
+    "rebalance_signals.csv",
+    "target_weights_at_close.csv"
+  ]
+}

@@ -1,0 +1,4 @@
+﻿factor,observations,rebalances_with_cross_section,mean_cross_sectional_ic,positive_ic_fraction
+adx,1850,370,-0.08189189189189189,0.4297297297297297
+temporal_signal,1850,370,-0.03702702702702704,0.44324324324324327
+vol_adjusted_momentum,1850,370,-0.023783783783783794,0.45135135135135135

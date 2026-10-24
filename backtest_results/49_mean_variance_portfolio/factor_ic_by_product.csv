@@ -1,0 +1,9 @@
+﻿product,factor,observations,spearman_ic,ic_positive
+DCE.i,expected_return,91,0.056999522216913526,True
+DCE.jm,expected_return,91,0.0780697563306259,True
+DCE.m,expected_return,91,-0.004570791527313267,False
+INE.sc,expected_return,91,0.14588310240484156,True
+SHFE.al,expected_return,91,0.2170727822901736,True
+SHFE.au,expected_return,91,0.11438127090301002,True
+SHFE.cu,expected_return,91,-0.12713807931199236,False
+SHFE.rb,expected_return,91,0.013744226787705049,True

@@ -7,18 +7,18 @@
 【关于 TqSdk】
 TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货、期权、股票等市场，提供实时行情、K 线数据、历史回测、模拟交易和实盘交易等能力。
 本仓库中的策略示例通常使用 TqApi 获取行情和 K 线，用 TqSim 或模拟账户演示交易流程，并通过目标仓位或下单接口把策略信号转成交易动作。
-运行这些示例前，需要先安装 tqsdk，并把示例中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的天勤或快期账户信息。
+运行这些示例前，需要先安装 tqsdk；快期账号已在 strategies/config_local.py 本地配置，合约和回测日期可在参数区修改。
 
 【策略介绍】
 宏观因子轮转截面策略用于演示如何把一个明确的交易想法落到 TqSdk 策略脚本中。核心思路是：构建经济增长、通胀和流动性等宏观因子暴露，对期货品种做横截面轮转。
-脚本默认关注 文件参数中设置的合约或品种池，运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
+合约与回测日期可在文件上方参数区设置；运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
 这类策略适合同时跟踪多个品种，通过横向比较选择交易对象，需要关注品种池、流动性和因子稳定性。
 本策略把多个商品期货品种放在同一个池子里比较，核心不是判断单个品种的绝对涨跌，而是筛选当下综合表现更强的一组品种。脚本会计算中短期动量、低波动、流动性和近期强弱等因子，统一标准化后加权得到综合分，再定期轮转到排名靠前的品种。实际使用时应定期更新合约、剔除流动性不足品种，并观察因子权重在不同市场阶段是否过度偏向某一类行情。
 
 
 【运行说明】
 1. 安装依赖：pip install tqsdk -U。
-2. 修改账号：把文件中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的账号信息。
+2. 快期账号已在 strategies/config_local.py 本地配置，无需额外设置。
 3. 先使用模拟账户运行和观察日志，不建议未经验证直接用于实盘。
 4. 如果合约代码已经过期，需要替换为当前在市的主力或目标合约。
 
@@ -34,6 +34,12 @@ TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货
 import numpy as np
 import pandas as pd
 from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
+
+from datetime import date
+from backtest_support import create_backtest_api, run_backtest
+BACKTEST_START = date(2025, 1, 1)
+BACKTEST_END = date(2025, 5, 31)
+init_balance = 10_000_000  # 模拟账户初始资金（元）
 
 # ========== 策略参数 ==========
 # 监控品种列表（根据实际行情可调整合约代码）
@@ -166,7 +172,7 @@ def calc_all_factors(klines_dict, quotes_dict):
 
 # ========== 策略主体 ==========
 def main():
-    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
+    api = create_backtest_api('62_macro_factor_rotation', ASSETS, BACKTEST_START, BACKTEST_END, init_balance=init_balance)
     target_pos = {sym: TargetPosTask(api, sym) for sym in ASSETS}
 
     print(f"[策略62] 宏观因子轮转截面策略启动 | 品种数: {len(ASSETS)}")
@@ -253,4 +259,4 @@ def main():
     api.close()
 
 if __name__ == "__main__":
-    main()
+    run_backtest(main)

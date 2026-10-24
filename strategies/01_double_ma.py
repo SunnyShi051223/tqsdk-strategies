@@ -7,16 +7,16 @@
 【关于 TqSdk】
 TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货、期权、股票等市场，提供实时行情、K 线数据、历史回测、模拟交易和实盘交易等能力。
 本仓库中的策略示例通常使用 TqApi 获取行情和 K 线，用 TqSim 或模拟账户演示交易流程，并通过目标仓位或下单接口把策略信号转成交易动作。
-运行这些示例前，需要先安装 tqsdk，并把示例中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的天勤或快期账户信息。
+运行这些示例前，需要先安装 tqsdk；快期账号已在 strategies/config_local.py 本地配置，合约和回测日期可在参数区修改。
 
 【策略介绍】
 双均线趋势策略用于演示如何把一个明确的交易想法落到 TqSdk 策略脚本中。核心思路是：MA5/MA20 金叉做多、死叉做空
-脚本默认关注 SHFE.rb2501，运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
+合约与回测日期可在文件上方参数区设置；运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
 这类策略更适合方向持续的行情，在横盘震荡中容易反复进出，需要结合风控和周期过滤使用。
 
 【运行说明】
 1. 安装依赖：pip install tqsdk -U。
-2. 修改账号：把文件中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的账号信息。
+2. 快期账号已在 strategies/config_local.py 本地配置，无需额外设置。
 3. 先使用模拟账户运行和观察日志，不建议未经验证直接用于实盘。
 4. 如果合约代码已经过期，需要替换为当前在市的主力或目标合约。
 
@@ -67,15 +67,23 @@ TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货
       https://doc.shinnytech.com/tqsdk/latest/reference/tqsdk.api.html#tqsdk.api.TqApi.TargetPosTask
 """
 
-from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
+from datetime import date
+
+from tqsdk import BacktestFinished, TqApi, TqAuth, TqBacktest, TqSim, TargetPosTask
 from tqsdk.tafunc import ma, crossup, crossdown
 
+from backtest_support import create_backtest_api, run_backtest
+
 # ===================== 策略参数 =====================
-SYMBOL = "SHFE.rb2501"     # 交易合约：上期所螺纹钢2501合约
+SYMBOL = "SHFE.rb2410"  # specific futures contract; adjust for the backtest interval
+
 SHORT_PERIOD = 5            # 短期均线周期：5根K线
 LONG_PERIOD = 20            # 长期均线周期：20根K线
 KLINE_DUR = 60 * 60         # K线周期：3600秒 = 1小时K线
 VOLUME = 1                  # 持仓手数（正数=多头，负数=空头，0=空仓）
+BACKTEST_START = date(2024, 1, 1)
+BACKTEST_END = date(2024, 10, 1)
+init_balance = 10_000_000  # 模拟账户初始资金（元）
 # ===================================================
 
 
@@ -85,14 +93,11 @@ def main():
 
     使用 TqSim 进行模拟交易，如需实盘请替换为:
         TqAccount("期货公司名称", "资金账号", "交易密码")
-    并在 TqApi 中传入 auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
+    运行前请先在 strategies/config_local.py 中填写快期账号
     """
 
     # 初始化 API：使用模拟账户进行策略测试
-    api = TqApi(
-        account=TqSim(),
-        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"),
-    )
+    api = create_backtest_api('01_double_ma', SYMBOL, BACKTEST_START, BACKTEST_END, init_balance=init_balance)
 
     # 订阅 K 线数据
     klines = api.get_kline_serial(SYMBOL, KLINE_DUR, data_length=LONG_PERIOD + 10)
@@ -100,48 +105,50 @@ def main():
     # ===== TargetPosTask 初始化 =====
     # 在主循环外创建，每个合约对应一个实例
     # 它会在后台持续管理委托，确保实际持仓趋向目标仓位
-    target_pos = TargetPosTask(api, SYMBOL)
+    target_pos = TargetPosTask(api, SYMBOL, price="ACTIVE")
     # ================================
 
     print(f"[策略启动] 双均线策略 | 合约: {SYMBOL} | 短周期: {SHORT_PERIOD} | 长周期: {LONG_PERIOD}")
 
-    while True:
-        # 等待行情数据更新
-        api.wait_update()
+    try:
+        while True:
+            # 回测模式会逐步推进历史行情，回测结束时抛出 BacktestFinished。
+            api.wait_update()
 
-        # 仅在 K 线有更新时重新计算信号
-        if not api.is_changing(klines):
-            continue
+            # 仅在 K 线有更新时重新计算信号
+            if not api.is_changing(klines):
+                continue
 
-        # ---- 计算技术指标 ----
-        ma_short = ma(klines.close, SHORT_PERIOD)   # 短期均线序列
-        ma_long = ma(klines.close, LONG_PERIOD)     # 长期均线序列
+            print(
+                f"[行情更新] 最新价: {klines.close.iloc[-1]:.2f} | "
+                f"时间: {klines.iloc[-1].datetime}"
+            )
 
-        is_golden_cross = crossup(ma_short, ma_long).iloc[-1]   # 金叉信号
-        is_death_cross = crossdown(ma_short, ma_long).iloc[-1]  # 死叉信号
+            # ---- 计算技术指标 ----
+            ma_short = ma(klines.close, SHORT_PERIOD)
+            ma_long = ma(klines.close, LONG_PERIOD)
+            is_golden_cross = crossup(ma_short, ma_long).iloc[-1]
+            is_death_cross = crossdown(ma_short, ma_long).iloc[-1]
 
+            print(
+                f"MA{SHORT_PERIOD}: {ma_short.iloc[-1]:.2f} | "
+                f"MA{LONG_PERIOD}: {ma_long.iloc[-1]:.2f}"
+            )
+
+            if is_golden_cross:
+                print(f">>> 金叉！目标仓位: +{VOLUME}（做多）")
+                target_pos.set_target_volume(VOLUME)
+            elif is_death_cross:
+                print(f">>> 死叉！目标仓位: -{VOLUME}（做空）")
+                target_pos.set_target_volume(-VOLUME)
+    except BacktestFinished:
         print(
-            f"最新价: {klines.close.iloc[-1]:.2f} | "
-            f"MA{SHORT_PERIOD}: {ma_short.iloc[-1]:.2f} | "
-            f"MA{LONG_PERIOD}: {ma_long.iloc[-1]:.2f}"
+            f"[回测完成] 主连: {SYMBOL} | "
+            f"区间: {BACKTEST_START} 至 {BACKTEST_END}"
         )
-
-        # ---- 交易信号处理（用 TargetPosTask 设置目标仓位）----
-
-        if is_golden_cross:
-            # 金叉：趋势向上 → 目标仓位设为 +VOLUME（多头）
-            # TargetPosTask 会自动：平掉空仓（若有）+ 买入到目标手数
-            print(f">>> 金叉！目标仓位: +{VOLUME}（做多）")
-            target_pos.set_target_volume(VOLUME)
-
-        elif is_death_cross:
-            # 死叉：趋势向下 → 目标仓位设为 -VOLUME（空头）
-            # TargetPosTask 会自动：平掉多仓（若有）+ 卖出到目标手数
-            print(f">>> 死叉！目标仓位: -{VOLUME}（做空）")
-            target_pos.set_target_volume(-VOLUME)
-
-    api.close()
+    finally:
+        api.close()
 
 
 if __name__ == "__main__":
-    main()
+    run_backtest(main)

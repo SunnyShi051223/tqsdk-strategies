@@ -1,0 +1,4 @@
+﻿period,days,total_return,cagr,annualized_volatility,sharpe,max_drawdown,win_rate,total_cost,average_gross_exposure
+development_2019_2021,730,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+validation_2022_2023,484,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+out_of_sample_2024_2026-10-09,668,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

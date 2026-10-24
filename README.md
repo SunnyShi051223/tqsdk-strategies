@@ -78,8 +78,9 @@ pip install tqsdk -U -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host=
 
 ```python
 from tqsdk import TqApi, TqAuth
+from strategies.config_local import TQ_ACCOUNT, TQ_PASSWORD
 
-api = TqApi(auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
+api = TqApi(auth=TqAuth(TQ_ACCOUNT, TQ_PASSWORD))
 quote = api.get_quote("SHFE.rb2501")
 
 while True:
@@ -92,10 +93,11 @@ while True:
 ```python
 from datetime import date
 from tqsdk import TqApi, TqAuth, TqBacktest
+from strategies.config_local import TQ_ACCOUNT, TQ_PASSWORD
 
 api = TqApi(
     backtest=TqBacktest(start_dt=date(2023, 1, 1), end_dt=date(2024, 1, 1)),
-    auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD")
+    auth=TqAuth(TQ_ACCOUNT, TQ_PASSWORD)
 )
 ```
 
@@ -252,16 +254,30 @@ api = TqApi(
    pip install tqsdk -U
    ```
 
-3. **配置账户**  
-   在策略文件中替换 `YOUR_ACCOUNT` / `YOUR_PASSWORD` 为你的快期账户信息。  
-   注册快期账户：https://account.shinnytech.com/
+3. **配置回测账号**
+   将 `strategies/config_local.example.py` 复制为 `strategies/config_local.py`，并在本地配置快期账号和密码。真实配置文件已被 `.gitignore` 排除。
 
-4. **运行策略（模拟模式）**
+4. **运行历史回测**
+   在策略文件开头修改 SYMBOL（或组合策略中的 SYMBOLS / PAIRS）、BACKTEST_START、BACKTEST_END 和 `init_balance`，再运行：
 
-   ```bash
-   python strategies/01_double_ma.py
-   ```
+       python strategies/01_double_ma.py
 
+   每次回测会把权益曲线 SVG、权益与收益 CSV、成交和委托 CSV、汇总 JSON 保存到 Backtest/策略文件名/期货合约名/。合约和回测区间在策略文件开头配置，并需要覆盖同一段历史行情。
+
+5. **按主连品种批量回测单品种策略**
+   `future_list.csv` 保存期货品种与 TqSdk 主连代码的对应关系；逐日实际主力合约另存于 `Backtest/_data/main_contract_history.csv`，回测下单时按日期映射到真实交割月合约并在换月时滚动持仓。先生成一个品种的映射：
+
+       python prepare_futures_catalog.py --product DCE.m --start 2024-01-01 --end 2024-10-01
+
+   再运行 01 双均线策略：
+
+       python run_backtests.py --strategy 01 --product DCE.m --start 2024-01-01 --end 2024-10-01 --init-balance 10000000
+
+   `--strategy 01/02` 可同时选多个策略，`--strategy all` 只选择可识别的单品种策略；`--product all` 或 `--all` 遍历清单中的期货品种。省略开始日期时，每个品种从最早的主力映射日期开始；如果该起始月份合约被 TqSdk 明确报为不存在，程序会顺着主力映射逐月尝试，直到找到可识别的合约，并在结果摘要中记录实际起始日和跳过的合约。批量任务按顺序运行，结果写入 `Backtest/策略文件名/交易所.品种/`。添加 `--resume` 可跳过已有相同请求区间的结果，例如：
+
+       python run_backtests.py --strategy 01 --all --end 2026-10-20 --resume
+
+   自动跳月仅处理回测起始合约缺失的情况；若历史区间中途出现缺失合约，任务会报错，避免把缺失数据伪装成连续回测结果。
 ---
 
 ## 📅 更新计划

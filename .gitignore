@@ -27,3 +27,6 @@ secrets.py
 
 # 脚本目录
 scripts/
+
+# 历史回测产物
+Backtest/

@@ -1,0 +1,16 @@
+﻿product,factor,observations,spearman_ic,ic_positive
+DCE.i,adx,370,0.029398947300465935,True
+DCE.i,temporal_signal,370,-0.04529450889322035,False
+DCE.i,vol_adjusted_momentum,370,0.00858139054181392,True
+DCE.j,adx,370,-0.033137114499286614,False
+DCE.j,temporal_signal,370,-0.05463886080545077,False
+DCE.j,vol_adjusted_momentum,370,-0.0433146709262678,False
+DCE.jm,adx,370,-0.1665187868735814,False
+DCE.jm,temporal_signal,370,0.0161726251924135,True
+DCE.jm,vol_adjusted_momentum,370,0.0718431007432388,True
+SHFE.hc,adx,370,0.10407416776231584,True
+SHFE.hc,temporal_signal,370,0.019564552890810615,True
+SHFE.hc,vol_adjusted_momentum,370,0.060420479277412516,True
+SHFE.rb,adx,370,0.03723940889150277,True
+SHFE.rb,temporal_signal,370,-0.0230884358818091,False
+SHFE.rb,vol_adjusted_momentum,370,0.00864393418466129,True

@@ -7,16 +7,16 @@
 【关于 TqSdk】
 TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货、期权、股票等市场，提供实时行情、K 线数据、历史回测、模拟交易和实盘交易等能力。
 本仓库中的策略示例通常使用 TqApi 获取行情和 K 线，用 TqSim 或模拟账户演示交易流程，并通过目标仓位或下单接口把策略信号转成交易动作。
-运行这些示例前，需要先安装 tqsdk，并把示例中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的天勤或快期账户信息。
+运行这些示例前，需要先安装 tqsdk；快期账号已在 strategies/config_local.py 本地配置，合约和回测日期可在参数区修改。
 
 【策略介绍】
 波动率动量突破策略用于演示如何把一个明确的交易想法落到 TqSdk 策略脚本中。核心思路是：ATR 突破 + ADX 趋势确认，动态止损跟踪趋势
-脚本默认关注 INE.sc2501，运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
+合约与回测日期可在文件上方参数区设置；运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
 这类策略更适合趋势启动和波动扩张阶段，需要用成交量、波动率或趋势强度过滤假突破。
 
 【运行说明】
 1. 安装依赖：pip install tqsdk -U。
-2. 修改账号：把文件中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的账号信息。
+2. 快期账号已在 strategies/config_local.py 本地配置，无需额外设置。
 3. 先使用模拟账户运行和观察日志，不建议未经验证直接用于实盘。
 4. 如果合约代码已经过期，需要替换为当前在市的主力或目标合约。
 
@@ -64,8 +64,13 @@ TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货
 """
 
 from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
-from tqsdk.tafunc import atr, dx
 import numpy as np
+
+from datetime import date
+from backtest_support import create_backtest_api, run_backtest
+BACKTEST_START = date(2024, 9, 1)
+BACKTEST_END = date(2025, 1, 31)
+init_balance = 10_000_000  # 模拟账户初始资金（元）
 
 # ===================== 策略参数 =====================
 SYMBOL = "INE.sc2501"         # 交易合约：原油主力合约
@@ -81,20 +86,63 @@ VOLUME = 1                    # 持仓手数
 
 def calc_adx(high, low, close, period):
     """计算 ADX（Average Directional Index）"""
-    if len(high) < period + 1:
+    high = np.asarray(high, dtype=float)
+    low = np.asarray(low, dtype=float)
+    close = np.asarray(close, dtype=float)
+    if len(high) < period * 2:
         return np.nan
-    dx_vals = dx(high, low, close, period)
-    adx = atr(high, low, close, period)
-    if len(dx_vals) < period or adx == 0:
+
+    previous_close = np.roll(close, 1)
+    previous_close[0] = close[0]
+    true_range = np.maximum.reduce(
+        (high - low, np.abs(high - previous_close), np.abs(low - previous_close))
+    )
+    plus_dm = np.zeros(len(high), dtype=float)
+    minus_dm = np.zeros(len(high), dtype=float)
+    upward = high[1:] - high[:-1]
+    downward = low[:-1] - low[1:]
+    plus_dm[1:] = np.where((upward > downward) & (upward > 0), upward, 0.0)
+    minus_dm[1:] = np.where((downward > upward) & (downward > 0), downward, 0.0)
+
+    dx_values = np.full(len(high), np.nan, dtype=float)
+    for index in range(period - 1, len(high)):
+        start = index - period + 1
+        tr_sum = np.sum(true_range[start:index + 1])
+        if tr_sum <= 0:
+            continue
+        plus_di = 100.0 * np.sum(plus_dm[start:index + 1]) / tr_sum
+        minus_di = 100.0 * np.sum(minus_dm[start:index + 1]) / tr_sum
+        di_sum = plus_di + minus_di
+        if di_sum > 0:
+            dx_values[index] = 100.0 * abs(plus_di - minus_di) / di_sum
+
+    valid_dx = dx_values[np.isfinite(dx_values)]
+    if len(valid_dx) < period:
         return np.nan
-    return np.mean(dx_vals[-period:]) / adx * 100
+    return float(np.mean(valid_dx[-period:]))
+
+
+def calc_atr(high, low, close, period):
+    """计算 Wilder ATR 序列，供动态止损和波动率突破使用。"""
+    high = np.asarray(high, dtype=float)
+    low = np.asarray(low, dtype=float)
+    close = np.asarray(close, dtype=float)
+    previous_close = np.roll(close, 1)
+    previous_close[0] = close[0]
+    true_range = np.maximum.reduce(
+        (high - low, np.abs(high - previous_close), np.abs(low - previous_close))
+    )
+    result = np.full(len(high), np.nan, dtype=float)
+    if len(high) < period:
+        return result
+    result[period - 1] = np.mean(true_range[:period])
+    for index in range(period, len(high)):
+        result[index] = (result[index - 1] * (period - 1) + true_range[index]) / period
+    return result
 
 
 def main():
-    api = TqApi(
-        account=TqSim(),
-        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"),
-    )
+    api = create_backtest_api('28_volatility_breakout', SYMBOL, BACKTEST_START, BACKTEST_END, init_balance=init_balance)
 
     klines = api.get_kline_serial(
         SYMBOL, KLINE_DUR,
@@ -120,7 +168,7 @@ def main():
         low = klines.low.values
 
         # ---- 计算指标 ----
-        atr_val = atr(high, low, close, ATR_PERIOD)[-1]
+        atr_val = calc_atr(high, low, close, ATR_PERIOD)[-1]
         adx_val = calc_adx(high, low, close, ADX_PERIOD)
 
         # ---- 突破信号 ----
@@ -180,4 +228,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_backtest(main)

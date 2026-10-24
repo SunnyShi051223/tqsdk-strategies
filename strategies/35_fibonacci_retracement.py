@@ -5,16 +5,16 @@
 【关于 TqSdk】
 TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货、期权、股票等市场，提供实时行情、K 线数据、历史回测、模拟交易和实盘交易等能力。
 本仓库中的策略示例通常使用 TqApi 获取行情和 K 线，用 TqSim 或模拟账户演示交易流程，并通过目标仓位或下单接口把策略信号转成交易动作。
-运行这些示例前，需要先安装 tqsdk，并把示例中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的天勤或快期账户信息。
+运行这些示例前，需要先安装 tqsdk；快期账号已在 strategies/config_local.py 本地配置，合约和回测日期可在参数区修改。
 
 【策略介绍】
 斐波那契回调策略用于演示如何把一个明确的交易想法落到 TqSdk 策略脚本中。核心思路是：根据前期高低点计算斐波那契回调位，在关键回调位置结合趋势方向做交易。
-脚本默认关注 文件参数中设置的合约或品种池，运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
+合约与回测日期可在文件上方参数区设置；运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
 这类策略更适合方向持续的行情，在横盘震荡中容易反复进出，需要结合风控和周期过滤使用。
 
 【运行说明】
 1. 安装依赖：pip install tqsdk -U。
-2. 修改账号：把文件中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的账号信息。
+2. 快期账号已在 strategies/config_local.py 本地配置，无需额外设置。
 3. 先使用模拟账户运行和观察日志，不建议未经验证直接用于实盘。
 4. 如果合约代码已经过期，需要替换为当前在市的主力或目标合约。
 
@@ -97,6 +97,14 @@ from tqsdk.ta import RSI, ATR
 import pandas as pd
 import numpy as np
 
+from datetime import date
+from backtest_support import create_backtest_api, run_backtest
+from tqsdk import TargetPosTask
+SYMBOL = 'SHFE.rb2505'
+BACKTEST_START = date(2025, 1, 1)
+BACKTEST_END = date(2025, 5, 31)
+init_balance = 10_000_000  # 模拟账户初始资金（元）
+
 
 class FibonacciStrategy:
     """波浪尺斐波那契回撤策略"""
@@ -105,18 +113,23 @@ class FibonacciStrategy:
                  rsi_period=14, rsi_oversold=35, rsi_overbought=65, atr_multi=2.5):
         self.api = api
         self.symbol = symbol
+        self.target_pos = TargetPosTask(api, symbol, price="ACTIVE")
         self.fib_levels = fib_levels
         self.rsi_period = rsi_period
         self.rsi_oversold = rsi_oversold
         self.rsi_overbought = rsi_overbought
         self.atr_multi = atr_multi
         
-        self.position = 0
+        self.set_position(0)
         self.entry_price = 0
         self.highest = 0
         self.lowest = 0
         self.fib_levels_dict = {}
         
+    def set_position(self, position):
+        self.position = position
+        self.target_pos.set_target_volume(position)
+
     def calculate_fib_retracement(self, klines):
         """计算斐波那契回撤位"""
         if len(klines) < 20:
@@ -162,7 +175,7 @@ class FibonacciStrategy:
             for level, price in fib_levels.items():
                 if abs(current_price - price) / price < 0.005:  # 接近回撤位
                     if rsi < self.rsi_oversold:
-                        self.position = 1
+                        self.set_position(1)
                         self.entry_price = current_price
                         print(f"[买入] 价格: {current_price}, 斐波位: {level}, RSI: {rsi:.2f}")
                         break
@@ -172,19 +185,19 @@ class FibonacciStrategy:
             atr = ATR(klines, 14).iloc[-1]
             if current_price < self.entry_price - atr * self.atr_multi:
                 print(f"[多头止损] 价格: {current_price}")
-                self.position = 0
+                self.set_position(0)
                 self.entry_price = 0
             # RSI 超买时平仓
             elif rsi > self.rsi_overbought:
                 print(f"[多头平仓 RSI超买] 价格: {current_price}, RSI: {rsi:.2f}")
-                self.position = 0
+                self.set_position(0)
                 self.entry_price = 0
 
 
 def main():
-    api = TqApi()
+    api = create_backtest_api('35_fibonacci_retracement', SYMBOL, BACKTEST_START, BACKTEST_END, init_balance=init_balance)
     
-    symbol = "SHFE.rb2505"
+    symbol = SYMBOL
     strategy = FibonacciStrategy(
         api,
         symbol=symbol,
@@ -206,4 +219,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_backtest(main)

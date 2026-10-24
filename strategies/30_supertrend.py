@@ -5,16 +5,16 @@ SuperTrend 超级趋势指标策略
 【关于 TqSdk】
 TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货、期权、股票等市场，提供实时行情、K 线数据、历史回测、模拟交易和实盘交易等能力。
 本仓库中的策略示例通常使用 TqApi 获取行情和 K 线，用 TqSim 或模拟账户演示交易流程，并通过目标仓位或下单接口把策略信号转成交易动作。
-运行这些示例前，需要先安装 tqsdk，并把示例中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的天勤或快期账户信息。
+运行这些示例前，需要先安装 tqsdk；快期账号已在 strategies/config_local.py 本地配置，合约和回测日期可在参数区修改。
 
 【策略介绍】
 SuperTrend 超级趋势指标策略用于演示如何把一个明确的交易想法落到 TqSdk 策略脚本中。核心思路是：ATR倍数动态上下轨，趋势翻转时平仓反手，自带追踪止损
-脚本默认关注 KQ.m@SHFE.rb，运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
+合约与回测日期可在文件上方参数区设置；运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
 这类策略更适合方向持续的行情，在横盘震荡中容易反复进出，需要结合风控和周期过滤使用。
 
 【运行说明】
 1. 安装依赖：pip install tqsdk -U。
-2. 修改账号：把文件中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的账号信息。
+2. 快期账号已在 strategies/config_local.py 本地配置，无需额外设置。
 3. 先使用模拟账户运行和观察日志，不建议未经验证直接用于实盘。
 4. 如果合约代码已经过期，需要替换为当前在市的主力或目标合约。
 
@@ -118,13 +118,20 @@ SuperTrend 的最大优点是：
 """
 
 import numpy as np
+import pandas as pd
 from tqsdk import TqApi, TqAuth, TqSim, BacktestFinished
-from tqsdk.tafunc import atr
+
+from datetime import date
+from backtest_support import create_backtest_api, run_backtest
+BACKTEST_START = date(2025, 1, 1)
+BACKTEST_END = date(2025, 5, 31)
+init_balance = 200_000  # 模拟账户初始资金（元）
 
 # ─────────────────────────────────────────────
 # 策略参数
 # ─────────────────────────────────────────────
-SYMBOL = "KQ.m@SHFE.rb"      # 螺纹钢主力合约（自动展期）
+SYMBOL = "SHFE.rb2505"  # specific futures contract
+
 KLINE_FREQ = 60 * 15          # K 线周期：15 分钟 = 900 秒
 ATR_PERIOD = 10               # ATR 计算周期
 MULTIPLIER = 3.0              # ATR 倍数
@@ -148,8 +155,21 @@ def compute_supertrend(df, period: int, multiplier: float):
     low = df["low"]
     close = df["close"]
 
-    # 计算 ATR（使用 tqsdk 内置函数）
-    atr_series = atr(df, period)
+    # 计算 Wilder ATR，避免依赖当前 TqSdk 中不存在的 tafunc.atr。
+    high_values = high.to_numpy(dtype=float)
+    low_values = low.to_numpy(dtype=float)
+    close_values = close.to_numpy(dtype=float)
+    previous_close = np.roll(close_values, 1)
+    previous_close[0] = close_values[0]
+    true_range = np.maximum.reduce(
+        (high_values - low_values, np.abs(high_values - previous_close), np.abs(low_values - previous_close))
+    )
+    atr_values = np.full(len(df), np.nan, dtype=float)
+    if len(df) >= period:
+        atr_values[period - 1] = np.mean(true_range[:period])
+        for index in range(period, len(df)):
+            atr_values[index] = (atr_values[index - 1] * (period - 1) + true_range[index]) / period
+    atr_series = pd.Series(atr_values, index=df.index)
 
     hl2 = (high + low) / 2.0
 
@@ -163,13 +183,20 @@ def compute_supertrend(df, period: int, multiplier: float):
     st_value = np.full(n, np.nan)   # SuperTrend 值
     st_dir = np.zeros(n, dtype=int)  # 趋势方向
 
-    # 初始化
-    fub[0] = bub.iloc[0]
-    flb[0] = blb.iloc[0]
-    st_value[0] = fub[0]
-    st_dir[0] = -1  # 初始假设空头
+    # ATR 预热完成后再初始化通道，避免 NaN 沿递推计算传播到整个序列。
+    valid_indices = np.flatnonzero(np.isfinite(atr_values))
+    if len(valid_indices) == 0:
+        df = df.copy()
+        df["st_value"] = st_value
+        df["st_dir"] = st_dir
+        return df
+    start = int(valid_indices[0])
+    fub[start] = bub.iloc[start]
+    flb[start] = blb.iloc[start]
+    st_value[start] = fub[start]
+    st_dir[start] = -1  # 初始假设空头
 
-    for i in range(1, n):
+    for i in range(start + 1, n):
         # 更新最终上轨
         if bub.iloc[i] < fub[i - 1] or close.iloc[i - 1] > fub[i - 1]:
             fub[i] = bub.iloc[i]
@@ -212,11 +239,7 @@ def main():
     # ─────────────────────────────────────────
     # 初始化 TqApi（回测模式，使用模拟账户）
     # ─────────────────────────────────────────
-    api = TqApi(
-        account=TqSim(init_balance=200000),
-        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"),  # 请替换为实际账号
-        backtest=...,   # 如需回测，传入 TqBacktest 对象；实盘删除此参数
-    )
+    api = create_backtest_api('30_supertrend', SYMBOL, BACKTEST_START, BACKTEST_END, init_balance=init_balance)
 
     # 订阅 K 线（需要 period+2 根以上才能计算指标，多订阅几根缓冲）
     klines = api.get_kline_serial(SYMBOL, KLINE_FREQ, data_length=ATR_PERIOD + 50)
@@ -311,4 +334,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_backtest(main)

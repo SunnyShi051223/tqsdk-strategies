@@ -1,0 +1,49 @@
+{
+  "strategy": "59_vol_momentum_composite",
+  "source_file": "59_vol_momentum_composite.py",
+  "status": "completed",
+  "requested_period": {
+    "start": "2019-01-01",
+    "end": "2026-10-10"
+  },
+  "actual_data_period": {
+    "start": "2019-01-02",
+    "end": "2026-10-09"
+  },
+  "products": [
+    "SHFE.rb",
+    "SHFE.hc",
+    "DCE.i",
+    "DCE.jm",
+    "DCE.j"
+  ],
+  "method": "offline daily research simulation; daily close signal and next daily open execution; roll-adjusted OHLC, no raw cross-contract roll-gap PnL",
+  "gross_exposure_normalization": "Target lots are normalized to gross notional exposure 1.0 for cross-strategy comparison; this is not TqSim cash/lot accounting.",
+  "cost_one_way_bps": 5.0,
+  "cost_note": "Generic proxy for commission plus slippage. It is not an exchange-specific fee schedule or tick-by-tick fill simulation.",
+  "rebalance_events": 370,
+  "metrics": {
+    "days": 1882,
+    "total_return": 0.26640346146986515,
+    "cagr": 0.032130028809308486,
+    "annualized_volatility": 0.23537395413232065,
+    "sharpe": 0.2511445752072192,
+    "max_drawdown": -0.38127972704807944,
+    "win_rate": 0.3522848034006376,
+    "total_cost": 0.261,
+    "average_gross_exposure": 1.0478214665249734
+  },
+  "notes": [],
+  "files": [
+    "daily_equity.csv",
+    "equity_curve.png",
+    "factor_contribution.csv",
+    "factor_ic_summary.csv",
+    "factor_ic_by_product.csv",
+    "product_attribution.csv",
+    "period_metrics.csv",
+    "cost_sensitivity.csv",
+    "rebalance_signals.csv",
+    "target_weights_at_close.csv"
+  ]
+}

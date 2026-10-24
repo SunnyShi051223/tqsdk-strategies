@@ -1,0 +1,8 @@
+﻿model,days,total_return,cagr,annualized_volatility,sharpe,max_drawdown,win_rate,total_cost,average_gross_exposure,omitted_factor,return_contribution_pp,max_drawdown_change_pp
+all_factors,1882,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,,,
+without_ma_cross,1882,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,ma_cross,0.0,0.0
+without_macd_hist,1882,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,macd_hist,0.0,0.0
+without_mom_20,1882,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,mom_20,0.0,0.0
+without_mom_5,1882,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,mom_5,0.0,0.0
+without_volatility,1882,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,volatility,0.0,0.0
+without_volume_change,1882,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,volume_change,0.0,0.0

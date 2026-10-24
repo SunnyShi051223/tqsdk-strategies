@@ -1,0 +1,56 @@
+{
+  "strategy": "55_momentum_value_factor_composite",
+  "source_file": "55_momentum_value_factor_composite.py",
+  "status": "completed",
+  "requested_period": {
+    "start": "2019-01-01",
+    "end": "2026-10-10"
+  },
+  "actual_data_period": {
+    "start": "2019-01-02",
+    "end": "2026-10-09"
+  },
+  "products": [
+    "SHFE.rb",
+    "SHFE.hc",
+    "DCE.i",
+    "DCE.jm",
+    "DCE.j",
+    "SHFE.cu",
+    "SHFE.al",
+    "CZCE.MA",
+    "CZCE.TA"
+  ],
+  "method": "offline daily research simulation; daily close signal and next daily open execution; roll-adjusted OHLC, no raw cross-contract roll-gap PnL",
+  "gross_exposure_normalization": "Target lots are normalized to gross notional exposure 1.0 for cross-strategy comparison; this is not TqSim cash/lot accounting.",
+  "cost_one_way_bps": 5.0,
+  "cost_note": "Generic proxy for commission plus slippage. It is not an exchange-specific fee schedule or tick-by-tick fill simulation.",
+  "rebalance_events": 369,
+  "metrics": {
+    "days": 1882,
+    "total_return": -0.2369318492526341,
+    "cagr": -0.03555999410914967,
+    "annualized_volatility": 0.1226433258354263,
+    "sharpe": -0.23379885836281875,
+    "max_drawdown": -0.38017525625457826,
+    "win_rate": 0.5031880977683315,
+    "total_cost": 0.16666666666666669,
+    "average_gross_exposure": 0.9872476089266737
+  },
+  "notes": [
+    "The source implementation has an unreachable/one-shot signal condition; the as-coded backtest is expected to remain flat. See the strategy note and factor signals.",
+    "Carry/term-structure fields are price-series proxies in the source. The cache contains main-contract daily bars, not simultaneous near/next-month spreads."
+  ],
+  "files": [
+    "daily_equity.csv",
+    "equity_curve.png",
+    "factor_contribution.csv",
+    "factor_ic_summary.csv",
+    "factor_ic_by_product.csv",
+    "product_attribution.csv",
+    "period_metrics.csv",
+    "cost_sensitivity.csv",
+    "rebalance_signals.csv",
+    "target_weights_at_close.csv"
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "strategy": "54_multi_asset_long_short_hedge",
+  "source_file": "54_multi_asset_long_short_hedge.py",
+  "status": "completed",
+  "requested_period": {
+    "start": "2019-01-01",
+    "end": "2026-10-10"
+  },
+  "actual_data_period": {
+    "start": "2019-01-02",
+    "end": "2026-10-09"
+  },
+  "products": [
+    "SHFE.rb",
+    "SHFE.hc",
+    "DCE.i",
+    "DCE.jm",
+    "DCE.j",
+    "SHFE.cu",
+    "SHFE.al",
+    "SHFE.zn",
+    "DCE.m",
+    "DCE.y",
+    "CZCE.MA",
+    "CZCE.TA"
+  ],
+  "method": "offline daily research simulation; daily close signal and next daily open execution; roll-adjusted OHLC, no raw cross-contract roll-gap PnL",
+  "gross_exposure_normalization": "Target lots are normalized to gross notional exposure 1.0 for cross-strategy comparison; this is not TqSim cash/lot accounting.",
+  "cost_one_way_bps": 5.0,
+  "cost_note": "Generic proxy for commission plus slippage. It is not an exchange-specific fee schedule or tick-by-tick fill simulation.",
+  "rebalance_events": 1862,
+  "metrics": {
+    "days": 1882,
+    "total_return": -0.6764513265580758,
+    "cagr": -0.14023281842840352,
+    "annualized_volatility": 0.20891546500844876,
+    "sharpe": -0.6180936807431511,
+    "max_drawdown": -0.7677758510691597,
+    "win_rate": 0.4760892667375133,
+    "total_cost": 0.5726666666666667,
+    "average_gross_exposure": 0.9888416578108395
+  },
+  "notes": [
+    "The source calculates volatility but does not use it in the rank or the position size."
+  ],
+  "files": [
+    "daily_equity.csv",
+    "equity_curve.png",
+    "factor_contribution.csv",
+    "factor_ic_summary.csv",
+    "factor_ic_by_product.csv",
+    "product_attribution.csv",
+    "period_metrics.csv",
+    "cost_sensitivity.csv",
+    "rebalance_signals.csv",
+    "target_weights_at_close.csv"
+  ]
+}

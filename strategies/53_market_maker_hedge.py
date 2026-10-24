@@ -7,16 +7,16 @@
 【关于 TqSdk】
 TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货、期权、股票等市场，提供实时行情、K 线数据、历史回测、模拟交易和实盘交易等能力。
 本仓库中的策略示例通常使用 TqApi 获取行情和 K 线，用 TqSim 或模拟账户演示交易流程，并通过目标仓位或下单接口把策略信号转成交易动作。
-运行这些示例前，需要先安装 tqsdk，并把示例中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的天勤或快期账户信息。
+运行这些示例前，需要先安装 tqsdk；快期账号已在 strategies/config_local.py 本地配置，合约和回测日期可在参数区修改。
 
 【策略介绍】
 跨品种做市商对冲策略用于演示如何把一个明确的交易想法落到 TqSdk 策略脚本中。核心思路是：模拟做市商在多品种上挂单，使用跨品种对冲消除方向性风险，赚取买卖价差
-脚本默认关注 文件参数中设置的合约或品种池，运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
+合约与回测日期可在文件上方参数区设置；运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
 这类策略重点观察相对强弱和价差偏离，不是单纯预测某一个品种涨跌，需要特别关注品种相关性和价差稳定性。
 
 【运行说明】
 1. 安装依赖：pip install tqsdk -U。
-2. 修改账号：把文件中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的账号信息。
+2. 快期账号已在 strategies/config_local.py 本地配置，无需额外设置。
 3. 先使用模拟账户运行和观察日志，不建议未经验证直接用于实盘。
 4. 如果合约代码已经过期，需要替换为当前在市的主力或目标合约。
 
@@ -66,6 +66,12 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, time
 import asyncio
+
+from datetime import date
+from backtest_support import create_backtest_api, run_backtest
+BACKTEST_START = date(2024, 9, 1)
+BACKTEST_END = date(2025, 1, 31)
+init_balance = 10_000_000  # 模拟账户初始资金（元）
 
 
 class MarketMakerHedgeStrategy:
@@ -348,7 +354,7 @@ class MarketMakerHedgeStrategy:
 
 def main():
     """主函数"""
-    api = TqApi(account=TqSim(), auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"))
+    api = create_backtest_api('53_market_maker_hedge', MarketMakerHedgeStrategy.COMMODITY_GROUPS, BACKTEST_START, BACKTEST_END, init_balance=init_balance)
     
     strategy = MarketMakerHedgeStrategy(api)
     
@@ -361,4 +367,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_backtest(main)

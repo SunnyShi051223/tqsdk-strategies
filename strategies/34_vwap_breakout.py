@@ -5,16 +5,16 @@ VWAP 突破策略
 【关于 TqSdk】
 TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货、期权、股票等市场，提供实时行情、K 线数据、历史回测、模拟交易和实盘交易等能力。
 本仓库中的策略示例通常使用 TqApi 获取行情和 K 线，用 TqSim 或模拟账户演示交易流程，并通过目标仓位或下单接口把策略信号转成交易动作。
-运行这些示例前，需要先安装 tqsdk，并把示例中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的天勤或快期账户信息。
+运行这些示例前，需要先安装 tqsdk；快期账号已在 strategies/config_local.py 本地配置，合约和回测日期可在参数区修改。
 
 【策略介绍】
 VWAP 突破策略用于演示如何把一个明确的交易想法落到 TqSdk 策略脚本中。核心思路是：以 VWAP 作为日内强弱分界，价格带量突破 VWAP 区域后顺势跟进。
-脚本默认关注 文件参数中设置的合约或品种池，运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
+合约与回测日期可在文件上方参数区设置；运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
 这类策略更适合趋势启动和波动扩张阶段，需要用成交量、波动率或趋势强度过滤假突破。
 
 【运行说明】
 1. 安装依赖：pip install tqsdk -U。
-2. 修改账号：把文件中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的账号信息。
+2. 快期账号已在 strategies/config_local.py 本地配置，无需额外设置。
 3. 先使用模拟账户运行和观察日志，不建议未经验证直接用于实盘。
 4. 如果合约代码已经过期，需要替换为当前在市的主力或目标合约。
 
@@ -94,6 +94,14 @@ from tqsdk.ta import ATR, MA
 import pandas as pd
 import numpy as np
 
+from datetime import date
+from backtest_support import create_backtest_api, run_backtest
+from tqsdk import TargetPosTask
+SYMBOL = 'SHFE.rb2505'
+BACKTEST_START = date(2025, 1, 1)
+BACKTEST_END = date(2025, 5, 31)
+init_balance = 10_000_000  # 模拟账户初始资金（元）
+
 
 class VWAPStrategy:
     """VWAP 成交量加权平均价策略"""
@@ -102,16 +110,21 @@ class VWAPStrategy:
                  atr_multi=2.0, fixed_profit=50):
         self.api = api
         self.symbol = symbol
+        self.target_pos = TargetPosTask(api, symbol, price="ACTIVE")
         self.n1 = n1
         self.n2 = n2
         self.volume_factor = volume_factor
         self.atr_multi = atr_multi
         self.fixed_profit = fixed_profit
         
-        self.position = 0
+        self.set_position(0)
         self.entry_price = 0
         self.vwap = 0
         
+    def set_position(self, position):
+        self.position = position
+        self.target_pos.set_target_volume(position)
+
     def calculate_vwap(self, klines):
         """计算 VWAP"""
         if len(klines) < self.n2:
@@ -151,14 +164,14 @@ class VWAPStrategy:
             prev_price = klines['close'].iloc[-2]
             if (prev_price < self.vwap and current_price > self.vwap and 
                 self.check_volume_surge(klines)):
-                self.position = 1
+                self.set_position(1)
                 self.entry_price = current_price
                 print(f"[买入] 价格: {current_price}, VWAP: {self.vwap:.2f}")
                 
             # 做空信号：价格下穿 VWAP 且放量
             elif (prev_price > self.vwap and current_price < self.vwap and 
                   self.check_volume_surge(klines)):
-                self.position = -1
+                self.set_position(-1)
                 self.entry_price = current_price
                 print(f"[卖出] 价格: {current_price}, VWAP: {self.vwap:.2f}")
                 
@@ -167,17 +180,17 @@ class VWAPStrategy:
             # 止损
             if current_price < self.entry_price - atr * self.atr_multi:
                 print(f"[多头止损] 价格: {current_price}")
-                self.position = 0
+                self.set_position(0)
                 self.entry_price = 0
             # 止盈
             elif current_price > self.entry_price + self.fixed_profit:
                 print(f"[多头止盈] 价格: {current_price}")
-                self.position = 0
+                self.set_position(0)
                 self.entry_price = 0
             # 多头平仓条件：价格下穿 VWAP
             elif current_price < self.vwap:
                 print(f"[多头平仓] 价格: {current_price}, VWAP: {self.vwap:.2f}")
-                self.position = 0
+                self.set_position(0)
                 self.entry_price = 0
                 
         # 持有空头
@@ -185,24 +198,24 @@ class VWAPStrategy:
             # 止损
             if current_price > self.entry_price + atr * self.atr_multi:
                 print(f"[空头止损] 价格: {current_price}")
-                self.position = 0
+                self.set_position(0)
                 self.entry_price = 0
             # 止盈
             elif current_price < self.entry_price - self.fixed_profit:
                 print(f"[空头止盈] 价格: {current_price}")
-                self.position = 0
+                self.set_position(0)
                 self.entry_price = 0
             # 空头平仓条件：价格上穿 VWAP
             elif current_price > self.vwap:
                 print(f"[空头平仓] 价格: {current_price}, VWAP: {self.vwap:.2f}")
-                self.position = 0
+                self.set_position(0)
                 self.entry_price = 0
 
 
 def main():
-    api = TqApi()
+    api = create_backtest_api('34_vwap_breakout', SYMBOL, BACKTEST_START, BACKTEST_END, init_balance=init_balance)
     
-    symbol = "SHFE.rb2505"
+    symbol = SYMBOL
     strategy = VWAPStrategy(
         api, 
         symbol=symbol,
@@ -224,4 +237,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_backtest(main)

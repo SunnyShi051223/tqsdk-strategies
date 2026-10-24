@@ -7,16 +7,16 @@ ADX 趋势强度过滤策略
 【关于 TqSdk】
 TqSdk 是信易科技开源的 Python 量化交易开发包，面向国内期货、期权、股票等市场，提供实时行情、K 线数据、历史回测、模拟交易和实盘交易等能力。
 本仓库中的策略示例通常使用 TqApi 获取行情和 K 线，用 TqSim 或模拟账户演示交易流程，并通过目标仓位或下单接口把策略信号转成交易动作。
-运行这些示例前，需要先安装 tqsdk，并把示例中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的天勤或快期账户信息。
+运行这些示例前，需要先安装 tqsdk；快期账号已在 strategies/config_local.py 本地配置，合约和回测日期可在参数区修改。
 
 【策略介绍】
 ADX 趋势强度过滤策略用于演示如何把一个明确的交易想法落到 TqSdk 策略脚本中。核心思路是：ADX>25确认趋势强度，+DI/-DI判断方向，ATR追踪止损动态护盈
-脚本默认关注 DCE.i2601，运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
+合约与回测日期可在文件上方参数区设置；运行时先订阅行情或 K 线数据，再计算对应的指标、价差、排名或过滤条件；当信号满足要求时，策略会调整模拟账户持仓，信号消失或风险条件触发时退出。
 这类策略更适合方向持续的行情，在横盘震荡中容易反复进出，需要结合风控和周期过滤使用。
 
 【运行说明】
 1. 安装依赖：pip install tqsdk -U。
-2. 修改账号：把文件中的 YOUR_ACCOUNT / YOUR_PASSWORD 替换为自己的账号信息。
+2. 快期账号已在 strategies/config_local.py 本地配置，无需额外设置。
 3. 先使用模拟账户运行和观察日志，不建议未经验证直接用于实盘。
 4. 如果合约代码已经过期，需要替换为当前在市的主力或目标合约。
 
@@ -135,6 +135,11 @@ ADX 策略在以下市场环境中表现最佳：
 from tqsdk import TqApi, TqAuth, TqBacktest, TqSim
 from datetime import date
 import numpy as np
+
+from backtest_support import create_backtest_api, run_backtest
+BACKTEST_START = date(2025, 9, 1)
+BACKTEST_END = date(2026, 1, 31)
+init_balance = 300_000  # 模拟账户初始资金（元）
 
 # ===== 策略参数配置 =====
 SYMBOL = "DCE.i2601"        # 交易品种：铁矿石主力合约（趋势性较强）
@@ -265,14 +270,7 @@ def calc_atr(high, low, close, period=14):
 
 def main():
     # ===== 初始化 TqApi =====
-    api = TqApi(
-        backtest=TqBacktest(
-            start_dt=date(2025, 1, 1),
-            end_dt=date(2025, 12, 31)
-        ),
-        auth=TqAuth("YOUR_ACCOUNT", "YOUR_PASSWORD"),
-        account=TqSim(init_balance=300000)  # 模拟账户，初始资金30万（铁矿石保证金较高）
-    )
+    api = create_backtest_api('29_adx_trend_filter', SYMBOL, BACKTEST_START, BACKTEST_END, init_balance=init_balance)
 
     # ===== 订阅行情数据 =====
     # 获取4小时K线，保留600根历史数据以确保指标计算稳定
@@ -442,4 +440,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_backtest(main)
